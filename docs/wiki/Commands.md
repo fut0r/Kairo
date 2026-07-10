@@ -13,6 +13,12 @@ Reads `schema/<name>.kairo`, generates SQL, and applies it to the configured dat
 kairo create users
 ```
 
+## `validate <name>`
+Checks a schema file for correctness before it is applied.
+```
+kairo validate users
+```
+
 ## `query <sql>`
 Runs a query against the database. Supports natural syntax and raw SQL.
 ```

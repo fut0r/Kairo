@@ -80,7 +80,7 @@ pub fn print_welcome() {
     let url = format!("{}", "kairo.infiniware.bid".color(blue));
     println!("{}", line_colored(20, url, blue));
 
-    let brand = format!("{} {}{}", "made by".color(gray), "I".color(red).bold(), "NFINIWARE".white().bold());
+    let brand = format!("{} {}{}", "made by".color(gray), "fut0r".color(red).bold(), "".white().bold());
     println!("{}", line_colored(18, brand, blue));
 
     println!("{}", bar_bot);

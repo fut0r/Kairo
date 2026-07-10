@@ -8,6 +8,9 @@ pub struct Config {
 
 pub fn load_config() -> anyhow::Result<Config> {
     let content = std::fs::read_to_string("kairo.config")?;
-    let config: Config = toml::from_str(&content)?;
+    let mut config: Config = toml::from_str(&content)?;
+    if config.adapter == "postgresql" {
+        config.adapter = "postgres".to_string();
+    }
     Ok(config)
 }

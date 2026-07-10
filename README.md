@@ -4,7 +4,7 @@ Human-readable databases. Minimal. Fast. Local-first.
 
 ## What is it
 
-KairoDB is a terminal tool that lets you define database schemas in plain text, apply them to SQLite or PostgreSQL, and read any existing database in a human-readable format. No ORM. No bloat. Just a clean interface between you and your data.
+KairoDB is a terminal-first database workflow for developers who want clarity over ceremony. Define schemas in plain text, validate them before they are applied, generate SQL in a predictable way, and inspect SQLite or PostgreSQL databases without opening a heavy GUI. The goal is simple: make the database layer feel readable, deliberate, and approachable.
 
 ## Install
 
@@ -42,6 +42,7 @@ Then run the installer script above, or manually copy `target/release/kairo` to 
 ```
 kairo init               set up a new project
 kairo create <name>      apply a .kairo schema to your database
+kairo validate <name>    validate a schema before applying it
 kairo query <sql>        run a query (supports natural syntax)
 kairo read <file.db>     inspect any SQLite database file
 kairo read <pg_url>      inspect a PostgreSQL database

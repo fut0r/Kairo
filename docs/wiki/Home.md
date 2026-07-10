@@ -1,10 +1,16 @@
 # Welcome to the KairoDB Wiki
 
-KairoDB is a terminal-first database tool. It reads, writes, and manages databases using plain text.
+KairoDB is a terminal-first database workflow for people who want clarity over ceremony. It reads, writes, and inspects databases using plain text and a calm, predictable CLI.
+
+## v0.5.0
+
+This release focuses on reliability and clarity. It introduces schema validation, better modifier support for required/primary/unique fields, smarter natural query handling, and a more polished project layout so new users can start quickly without feeling like they are fighting the tool.
+
+See the [What's New in v0.5.0](../whats-new-0.5.md) guide for the full release summary.
 
 ## v0.4.0
 
-This release introduces native multi-database support (PostgreSQL and SQLite), elegant format mismatch error logging, and standalone installation support so developers can run Kairo DB globally without requiring a local Rust environment.
+This release introduced native multi-database support (PostgreSQL and SQLite), elegant format mismatch error logging, and standalone installation support so developers could run KairoDB globally without requiring a local Rust environment.
 
 ## v0.3.2
 

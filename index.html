@@ -48,9 +48,9 @@
         <section id="home-tab" class="tab-content active">
             <div class="hero">
                 <div class="hero-text">
-                    <p class="hero-label">Kairo<span class="blue-db">DB</span> v0.4.0</p>
+                    <p class="hero-label">Kairo<span class="blue-db">DB</span> v0.5.0</p>
                     <h1 id="hero-typewriter">Human-readable databases.</h1>
-                    <p class="hero-sub">Define database schemas in plain text. Compile them into real SQLite or PostgreSQL databases. Read any existing .db file and get a clean breakdown of every table, column, and row. No ORM. No bloat. Just your terminal and your data.</p>
+                    <p class="hero-sub">Define database schemas in plain text, validate them before they are applied, and inspect SQLite or PostgreSQL databases without leaving the terminal. KairoDB 0.5.0 is a more deliberate release focused on reliability, clarity, and a stronger developer workflow.</p>
                     <div class="hero-actions">
                         <a href="https://github.com/fut0r/kairo/releases" class="btn-primary">Download</a>
                         <a href="https://github.com/fut0r/kairo" class="btn-outline">Source code</a>
@@ -67,8 +67,8 @@
                 </div>
                 <div class="card">
                     <h3>Schema in plain text</h3>
-                    <p>Define your tables in .kairo files. No SQL boilerplate, no config files. Write what you mean, apply it to your database.</p>
-                    <code>kairo create users</code>
+                    <p>Define your tables in .kairo files with stronger structure and clearer intent. Validate first, then apply with confidence.</p>
+                    <code>kairo validate users</code>
                 </div>
                 <div class="card">
                     <h3>Query from your shell</h3>
@@ -153,7 +153,7 @@
             <!-- Multi-database -->
             <div class="multi-db-section">
                 <h2>SQLite and PostgreSQL</h2>
-                <p class="section-desc">Since v0.4.0, the <code>read</code> and <code>export</code> commands work with both local SQLite files and remote PostgreSQL instances. Kairo figures out which one you mean based on the path you give it.</p>
+                <p class="section-desc">Since v0.5.0, the <code>read</code>, <code>export</code>, and <code>tables</code> commands work more reliably across SQLite and PostgreSQL, while <code>validate</code> gives you a safer path before applying a schema.</p>
                 <div class="terminal-window wide">
                     <div class="terminal-header">
                         <span class="window-title">terminal</span>

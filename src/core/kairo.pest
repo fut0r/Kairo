@@ -5,13 +5,14 @@ schema = { SOI ~ table* ~ EOI }
 
 table = { "table" ~ ident ~ "{" ~ field* ~ "}" }
 
-field = { ident ~ ":" ~ type_name ~ ("=" ~ default_value)? ~ (",")? }
+field = { ident ~ ":" ~ type_name ~ (modifier | default_value)* }
+modifier = { "[" ~ modifier_name ~ "]" }
+modifier_name = @{ ASCII_ALPHA+ }
 
 ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 type_name = @{ ASCII_ALPHA+ }
-
-default_value = { bool_lit | int_lit | string_lit }
+default_value = { "=" ~ (bool_lit | int_lit | string_lit) }
 
 bool_lit = { "true" | "false" }
 int_lit = @{ "-"? ~ ASCII_DIGIT+ }

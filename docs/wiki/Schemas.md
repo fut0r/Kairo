@@ -14,13 +14,15 @@ table <table_name> {
 - `int`: Maps to `INTEGER`.
 - `bool`: Maps to `BOOLEAN`.
 
-## Default Values
-You can specify default values using the `=` operator.
+## Modifiers and Defaults
+You can emphasize structure directly in the schema with lightweight modifiers and defaults.
 ```kairo
 table posts {
-  title: string
-  published: bool = false
+  id: int [primary]
+  title: string [required]
+  published: bool [required] = false
   views: int = 0
+  slug: string [unique]
 }
 ```
 
@@ -28,3 +30,4 @@ table posts {
 - Fields can be separated by newlines or commas.
 - Semicolons are not required.
 - Comments can be added using `//`.
+- The validator command can be used to check schemas before applying them.

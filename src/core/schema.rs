@@ -16,6 +16,15 @@ pub fn generate_sql(schema: &Schema) -> String {
             };
 
             let mut field_sql = format!("  {} {}", field.name, type_sql);
+            if field.primary_key {
+                field_sql.push_str(" PRIMARY KEY");
+            }
+            if field.required {
+                field_sql.push_str(" NOT NULL");
+            }
+            if field.unique {
+                field_sql.push_str(" UNIQUE");
+            }
             if let Some(default) = &field.default_value {
                 field_sql.push_str(&format!(" DEFAULT {}", default));
             }

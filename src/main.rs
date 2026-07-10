@@ -11,7 +11,7 @@ use crate::adapters::postgres::PostgresAdapter;
 
 #[derive(Parser)]
 #[command(name = "kairo")]
-#[command(version = "0.4.0")]
+#[command(version = "0.5.0")]
 #[command(about = "Human-readable databases. Minimal. Fast. Local-first.")]
 struct Cli {
     #[command(subcommand)]
@@ -52,6 +52,12 @@ enum Commands {
 
     /// List all tables in the current database
     Tables,
+
+    /// Validate a .kairo schema without applying it
+    Validate {
+        /// Name of the schema (matches schema/<name>.kairo)
+        name: String,
+    },
 
     /// Show current project status
     Status,
@@ -190,24 +196,39 @@ async fn run_cli(cli: Cli) -> Result<()> {
             }
         }
 
+        Some(Commands::Validate { name }) => {
+            let schema_path = std::path::PathBuf::from("schema").join(format!("{}.kairo", name));
+            let content = std::fs::read_to_string(&schema_path)
+                .map_err(|_| anyhow!("no schema file at {}", schema_path.display()))?;
+            let content = content.strip_prefix('\u{FEFF}').unwrap_or(content);
+            let _ = core::parser::parse_schema(content)?;
+            ui::print_success(&format!("schema '{}' is valid", name));
+        }
+
         Some(Commands::Tables) => {
             let config = config::load_config()
                 .map_err(|_| anyhow!("no kairo.config found. run 'kairo init' first."))?;
             let adapter = connect_adapter(&config).await?;
-            let rows = adapter.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").await?;
+            let query = if config.adapter == "sqlite" {
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            } else {
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+            };
+            let rows = adapter.query(query).await?;
 
             if rows.is_empty() {
                 ui::print_dim("(no tables)");
             } else {
                 ui::print_header("tables");
                 for row in &rows {
-                    ui::print_row("-", &row.columns[0].value);
+                    let table_name = row.columns.first().map(|c| c.value.as_str()).unwrap_or("");
+                    ui::print_row("-", table_name);
                 }
             }
         }
 
         Some(Commands::Status) => {
-            ui::print_header("kairo v0.4.0");
+            ui::print_header("kairo v0.5.0");
 
             match config::load_config() {
                 Ok(cfg) => {
@@ -272,6 +293,15 @@ fn init_project() -> Result<()> {
         std::fs::write("kairo.config", config)?;
     }
 
-    ui::print_success("initialized.");
+    if !std::path::Path::new("schema/users.kairo").exists() {
+        let sample_schema = "// Sample KairoDB schema\ntable users {\n  id: int [primary]\n  name: string [required]\n  email: string [unique]\n}\n";
+        std::fs::write("schema/users.kairo", sample_schema)?;
+    }
+
+    if !std::path::Path::new("queries/README.md").exists() {
+        std::fs::write("queries/README.md", "# Queries\n\nStore reusable query snippets here.\n")?;
+    }
+
+    ui::print_success("initialized. a starter schema and project folders are ready");
     Ok(())
 }
