@@ -10,7 +10,7 @@ KairoDB is a terminal-first database workflow for developers who want clarity ov
 
 ### Download (no Rust required)
 
-Download the binary for your OS from the [Releases](https://github.com/lnfiniware/kairo/releases) page.
+Download the binary for your OS from the [Releases](https://github.com/fut0r/kairo/releases) page.
 
 After downloading, use the included installer script to set it up globally:
 
@@ -30,7 +30,7 @@ Both scripts will place `kairo` in your PATH so you can run it from any director
 ### Build from source
 
 ```
-git clone https://github.com/lnfiniware/kairo.git
+git clone https://github.com/fut0r/kairo.git
 cd kairo
 cargo build --release
 ```
