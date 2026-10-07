@@ -1,0 +1,22 @@
+[package]
+name = "kairo-core"
+description = "Schema parser, database adapters and application services shared by the Kairo CLI and desktop app."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+pest = "2.7"
+pest_derive = "2.7"
+serde.workspace = true
+toml = "0.8"
+futures-util = { version = "0.3", default-features = false }
+tokio = { workspace = true, features = ["time"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "tls-rustls-ring-webpki"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+serde_json = "1.0"

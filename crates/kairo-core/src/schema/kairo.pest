@@ -1,0 +1,29 @@
+// The .kairo schema grammar.
+//
+// 1.0 adds modifiers, float defaults, and quoted names. Every schema that
+// parsed under 0.4 still parses, and to the same tables and fields.
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" | "," }
+COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
+
+schema = { SOI ~ table* ~ EOI }
+
+table = { "table" ~ ident ~ "{" ~ field* ~ "}" }
+
+field = { ident ~ ":" ~ type_name ~ ("=" ~ default_value)? ~ modifiers? }
+
+modifiers = { "[" ~ modifier+ ~ "]" }
+modifier = { "required" | "primary" | "unique" }
+
+ident = ${ bare_ident | quoted_ident }
+bare_ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+quoted_ident = @{ "\"" ~ (!("\"" | "\n") ~ ANY)+ ~ "\"" }
+
+type_name = @{ ASCII_ALPHA+ }
+
+default_value = { bool_lit | float_lit | int_lit | string_lit }
+
+bool_lit = { "true" | "false" }
+float_lit = @{ "-"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+int_lit = @{ "-"? ~ ASCII_DIGIT+ }
+string_lit = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
