@@ -41,6 +41,7 @@ Rules the code keeps to:
 - **No database logic in TypeScript.** Parsing, validation, SQL generation and classification all happen in Rust. The syntax colouring in `src/lib/highlight.ts` is cosmetic.
 - **Commands return structured data.** Errors are `{ kind, message, detail?, hint? }`; the interface chooses its wording from `kind`.
 - **Nothing the interface is given contains a password.**
+- **Commands box their database work.** Each async command awaits `bounded(…)`, which puts the work on the heap. Tauri sets up every command on the main thread, and un-boxed database futures overflowed its stack in release builds on Windows. A test keeps each command future under 1 KB.
 - **No hard-coded records.** The only fixtures are in `src/test/fixtures.ts`, imported by tests alone.
 
 Dependencies are deliberately few: React, the Tauri API and dialog plugin, and JetBrains Mono. There is no router, state library, component kit or editor library.
@@ -61,7 +62,10 @@ cargo build                                    # from the repository root, for t
 npm run e2e                                    # SQLite: 69 checks
 npm run e2e -- -Screenshots ..\docs\screenshots
 npm run e2e -- -Postgres "postgres://user:secret@localhost:5432/scratch"
+npm run e2e -- -Profile release                # after: npm run tauri build -- --no-bundle; cargo build --release
 ```
+
+Run it against the release build before a release. Optimised builds lay out the stack differently, and one crash only ever showed up there.
 
 Each run uses a fresh folder for its database, settings and webview profile, so your own Kairo settings are not touched. `KAIRO_CONFIG_DIR` is what redirects the settings file.
 

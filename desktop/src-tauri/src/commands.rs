@@ -20,6 +20,7 @@ use kairo_core::services::{self, ConnectionCheck, export};
 use kairo_core::{ErrorKind, KairoError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::time::Duration;
 use tauri::State;
 
@@ -28,6 +29,10 @@ const MAX_SCHEMA_BYTES: u64 = 2 * 1024 * 1024;
 
 /// How long catalog reads, row pages, plans and exports may take.
 const CATALOG_LIMIT: Duration = Duration::from_secs(45);
+/// How long opening or testing a connection may take, catalog read included.
+const CONNECT_LIMIT: Duration = Duration::from_secs(60);
+/// How long applying a schema may take. It is one transaction either way.
+const APPLY_LIMIT: Duration = Duration::from_secs(300);
 /// Added to the user's query time limit before Kairo stops waiting itself.
 const QUERY_GRACE: Duration = Duration::from_secs(15);
 
@@ -141,20 +146,33 @@ pub fn clear_recents(state: State<'_, AppState>) -> Result<()> {
 /// Tries a connection and closes it again. Nothing is remembered.
 #[tauri::command]
 pub async fn test_connection(request: ConnectRequest) -> Result<ConnectionCheck> {
-    services::test_connection(&request.target()?).await
+    let target = request.target()?;
+    bounded(
+        "Testing the connection",
+        CONNECT_LIMIT,
+        services::test_connection(&target),
+    )
+    .await
 }
 
-async fn open_and_register(state: &AppState, target: &ConnectionTarget) -> Result<ConnectionView> {
-    let conn = Connection::open(target).await?;
-    let recent = RecentItem::for_connection(target, conn.info());
+/// Opens a target, registers the session and remembers it. Boxed for the
+/// reason given on [`bounded`].
+fn open_and_register<'a>(
+    state: &'a AppState,
+    target: &'a ConnectionTarget,
+) -> Boxed<'a, ConnectionView> {
+    bounded("Connecting", CONNECT_LIMIT, async move {
+        let conn = Connection::open(target).await?;
+        let recent = RecentItem::for_connection(target, conn.info());
 
-    let (session, replaced) = state.open(conn);
-    if let Some(previous) = replaced {
-        previous.conn.close().await;
-    }
-    state.store().touch_recent(recent);
+        let (session, replaced) = state.open(conn);
+        if let Some(previous) = replaced {
+            previous.conn.close().await;
+        }
+        state.store().touch_recent(recent);
 
-    Ok(session.view())
+        Ok(session.view())
+    })
 }
 
 #[tauri::command]
@@ -162,7 +180,8 @@ pub async fn connect(
     state: State<'_, AppState>,
     request: ConnectRequest,
 ) -> Result<ConnectionView> {
-    open_and_register(&state, &request.target()?).await
+    let target = request.target()?;
+    open_and_register(&state, &target).await
 }
 
 #[tauri::command]
@@ -178,27 +197,39 @@ pub fn list_connections(state: State<'_, AppState>) -> Vec<ConnectionView> {
     state.list()
 }
 
+/// A database call, moved to the heap.
+type Boxed<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
+
 /// Gives up on a database call that has stopped answering.
 ///
 /// A connection can die without the driver noticing, for example when a
 /// network path drops silently. Without a bound the caller would wait
 /// forever and the screen would show a spinner that never ends.
-async fn bounded<T>(
-    what: &str,
+///
+/// The work is boxed, and that matters. Tauri builds a command's future on
+/// the main thread before spawning it, wrapped in several `async` layers that
+/// each roughly double its size, and optimised code keeps a few copies of the
+/// result in one stack frame. Database futures of about 9 KB were turning
+/// into 370 KB frames, which overflowed the 1 MB main-thread stack on Windows
+/// in release builds. Behind a box, a command's future is a pointer.
+fn bounded<'a, T: 'a>(
+    what: &'static str,
     limit: Duration,
-    work: impl Future<Output = Result<T>>,
-) -> Result<T> {
-    match tokio::time::timeout(limit, work).await {
-        Ok(result) => result,
-        Err(_) => Err(KairoError::new(
-            ErrorKind::Timeout,
-            format!(
-                "{what} got no answer from the database after {} seconds.",
-                limit.as_secs()
-            ),
-        )
-        .with_hint("Check the connection, then try again or reconnect.")),
-    }
+    work: impl Future<Output = Result<T>> + Send + 'a,
+) -> Boxed<'a, T> {
+    Box::pin(async move {
+        match tokio::time::timeout(limit, work).await {
+            Ok(result) => result,
+            Err(_) => Err(KairoError::new(
+                ErrorKind::Timeout,
+                format!(
+                    "{what} got no answer from the database after {} seconds.",
+                    limit.as_secs()
+                ),
+            )
+            .with_hint("Check the connection, then try again or reconnect.")),
+        }
+    })
 }
 
 #[tauri::command]
@@ -425,7 +456,13 @@ pub async fn apply_schema(
         ));
     }
     let session = state.session(&connection_id)?;
-    schema_apply::apply(&session.conn, &parse_for_apply(&text)?).await
+    let parsed = parse_for_apply(&text)?;
+    bounded(
+        "Applying the schema",
+        APPLY_LIMIT,
+        schema_apply::apply(&session.conn, &parsed),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -560,6 +597,55 @@ mod tests {
         assert_eq!(failed.unwrap_err().kind, ErrorKind::Syntax);
     }
 
+    /// A command's own future should hold its arguments and a pointer to the
+    /// boxed work, nothing more. See [`bounded`] for what happens otherwise:
+    /// at about 9 KB each, five commands overflowed the main-thread stack in
+    /// release builds on Windows.
+    const MAX_COMMAND_FUTURE: usize = 1024;
+
+    // The size of the future a command function returns, read from its type
+    // without calling it. Calling would need a live Tauri `State`.
+    fn size1<A, F: Future>(_: impl Fn(A) -> F) -> usize {
+        size_of::<F>()
+    }
+    fn size2<A, B, F: Future>(_: impl Fn(A, B) -> F) -> usize {
+        size_of::<F>()
+    }
+    fn size3<A, B, C, F: Future>(_: impl Fn(A, B, C) -> F) -> usize {
+        size_of::<F>()
+    }
+    fn size4<A, B, C, D, F: Future>(_: impl Fn(A, B, C, D) -> F) -> usize {
+        size_of::<F>()
+    }
+
+    #[test]
+    fn command_futures_fit_on_the_main_thread_stack() {
+        let sizes = [
+            ("test_connection", size1(test_connection)),
+            ("connect", size2(connect)),
+            ("connect_project", size2(connect_project)),
+            ("disconnect", size2(disconnect)),
+            ("list_tables", size2(list_tables)),
+            ("describe_table", size3(describe_table)),
+            ("fetch_rows", size4(fetch_rows)),
+            ("run_query", size4(run_query)),
+            ("plan_schema", size3(plan_schema)),
+            ("apply_schema", size4(apply_schema)),
+            ("export_schema", size2(export_schema)),
+        ];
+        for (name, size) in sizes {
+            println!("{name:<18} {size:>9} bytes");
+        }
+
+        let too_big: Vec<_> = sizes
+            .iter()
+            .filter(|(_, size)| *size > MAX_COMMAND_FUTURE)
+            .collect();
+        assert!(
+            too_big.is_empty(),
+            "command futures too large for the main thread: {too_big:?}"
+        );
+    }
     #[test]
     fn errors_serialise_to_the_documented_shape() {
         let err = KairoError::new(ErrorKind::AuthFailed, "nope").with_hint("try again");

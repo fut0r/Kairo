@@ -136,7 +136,7 @@ the same SQL.
 
 ## 7. What verification changed
 
-Each phase was checked before the next began. Three things were only found by
+Each phase was checked before the next began. Four things were only found by
 running against something real, and they changed the design:
 
 - **Driving the built app.** `desktop/e2e` controls the actual window through
@@ -151,6 +151,17 @@ running against something real, and they changed the design:
   connection pooler does. sqlx's named prepared statements collided there, so
   every PostgreSQL query is now sent unnamed, and the pool size is
   configurable through `KAIRO_PG_POOL_SIZE`.
+
+- **The release build.** The debug build passed every check; the release
+  build died with a stack overflow on five commands. Tauri builds a command's
+  future on the main thread, wrapped in several `async` layers that each
+  roughly double its size, and optimised code keeps several copies in one
+  frame: 9 KB futures became 370 KB frames, and four such frames nest inside
+  a 1 MB Windows main-thread stack. Every command now boxes its database
+  work (`bounded` in `desktop/src-tauri/src/commands.rs`), a test holds each
+  command future under 1 KB, and the Windows binary links with the same 8 MB
+  stack the other platforms have. The end-to-end scenario is run against the
+  release build for this reason.
 
 Not exercised against a live PostgreSQL server: the statement time limit, TLS,
 and several connections at once. The CI workflow runs `tests/postgres.rs`
