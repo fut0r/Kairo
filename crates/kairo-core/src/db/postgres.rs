@@ -13,14 +13,50 @@ use super::value::{Value, ValueKind};
 use super::{BatchFailure, RunOptions};
 use crate::error::{ErrorKind, KairoError, Result};
 use futures_util::TryStreamExt;
-use sqlx::postgres::{PgConnection, PgPool, PgPoolOptions, PgRow, PgValueFormat};
+use sqlx::postgres::{PgArguments, PgConnection, PgPool, PgPoolOptions, PgRow, PgValueFormat};
+use sqlx::query::{Query, QueryScalar};
 use sqlx::{
-    AssertSqlSafe, Column, Connection, Either, Executor, Row, SqlSafeStr, Statement, TypeInfo,
-    ValueRef,
+    AssertSqlSafe, Column, Connection, Either, Executor, FromRow, Postgres, Row, SqlSafeStr,
+    Statement, TypeInfo, ValueRef,
 };
 use std::time::Duration;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(12);
+
+/// Environment variable that sets how many connections Kairo keeps per
+/// PostgreSQL database.
+pub const POOL_SIZE_ENV: &str = "KAIRO_PG_POOL_SIZE";
+const DEFAULT_POOL_SIZE: u32 = 3;
+
+/// Three connections let a slow query run while the catalog is still
+/// browsable. Servers that put every client on one session (PGlite, some
+/// embedded builds) need exactly one, or concurrent requests interleave on
+/// the wire.
+fn pool_size() -> u32 {
+    std::env::var(POOL_SIZE_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<u32>().ok())
+        .filter(|size| (1..=16).contains(size))
+        .unwrap_or(DEFAULT_POOL_SIZE)
+}
+
+/// A query sent without a server-side statement name.
+///
+/// sqlx names and caches prepared statements by default. A connection pooler
+/// such as PgBouncer shares one server session between clients, and there one
+/// client's `sqlx_s_1` collides with the next client's. Kairo runs too few
+/// statements for the cache to matter, so every query here goes unnamed.
+fn unnamed<'q>(sql: impl SqlSafeStr) -> Query<'q, Postgres, PgArguments> {
+    sqlx::query(sql).persistent(false)
+}
+
+/// [`unnamed`], for a query that returns one column.
+fn unnamed_scalar<'q, O>(sql: impl SqlSafeStr) -> QueryScalar<'q, Postgres, O, PgArguments>
+where
+    (O,): for<'r> FromRow<'r, PgRow>,
+{
+    sqlx::query_scalar(sql).persistent(false)
+}
 
 /// Separates list items packed into one text column by the catalog queries.
 const UNIT_SEPARATOR: char = '\u{1f}';
@@ -38,7 +74,7 @@ pub(crate) async fn open(target: &PostgresTarget) -> Result<(PgPool, ConnectionI
         .with_hint("Check the host, the port, and any firewall or VPN in between.")
     })??;
 
-    let settings = sqlx::query(
+    let settings = unnamed(
         "SELECT current_setting('server_version') AS version, \
                 current_setting('transaction_read_only') AS read_only",
     )
@@ -51,7 +87,7 @@ pub(crate) async fn open(target: &PostgresTarget) -> Result<(PgPool, ConnectionI
     let read_only: String = settings.try_get("read_only")?;
 
     let pool = PgPoolOptions::new()
-        .max_connections(3)
+        .max_connections(pool_size())
         .acquire_timeout(CONNECT_TIMEOUT)
         .connect_lazy_with(target.options.clone());
 
@@ -95,7 +131,7 @@ fn split_list(packed: &str) -> Vec<String> {
 }
 
 pub(crate) async fn list_tables(pool: &PgPool) -> Result<Vec<TableSummary>> {
-    let rows = sqlx::query(
+    let rows = unnamed(
         "SELECT c.relname::text AS name, \
                 c.relkind::text AS kind, \
                 c.reltuples::float8 AS estimate, \
@@ -131,13 +167,11 @@ pub(crate) async fn list_tables(pool: &PgPool) -> Result<Vec<TableSummary>> {
 
 pub(crate) async fn count_rows(pool: &PgPool, table: &str) -> Result<i64> {
     let sql = format!("SELECT COUNT(*) FROM {}", quote_ident(table));
-    Ok(sqlx::query_scalar(AssertSqlSafe(sql))
-        .fetch_one(pool)
-        .await?)
+    Ok(unnamed_scalar(AssertSqlSafe(sql)).fetch_one(pool).await?)
 }
 
 async fn columns_of(conn: &mut PgConnection, table: &str) -> Result<Vec<ColumnInfo>> {
-    let rows = sqlx::query(
+    let rows = unnamed(
         "SELECT a.attname::text AS name, \
                 format_type(a.atttypid, a.atttypmod) AS data_type, \
                 NOT a.attnotnull AS nullable, \
@@ -179,7 +213,7 @@ async fn columns_of(conn: &mut PgConnection, table: &str) -> Result<Vec<ColumnIn
 pub(crate) async fn describe_table(pool: &PgPool, table: &str) -> Result<TableDetail> {
     let mut conn = pool.acquire().await?;
 
-    let relkind: Option<String> = sqlx::query_scalar(
+    let relkind: Option<String> = unnamed_scalar(
         "SELECT c.relkind::text \
            FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
           WHERE n.nspname = current_schema() AND c.relname = $1 \
@@ -196,7 +230,7 @@ pub(crate) async fn describe_table(pool: &PgPool, table: &str) -> Result<TableDe
 
     let create_sql = match kind {
         TableKind::View => {
-            let body: Option<String> = sqlx::query_scalar(
+            let body: Option<String> = unnamed_scalar(
                 "SELECT pg_get_viewdef(c.oid, true) \
                    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
                   WHERE n.nspname = current_schema() AND c.relname = $1",
@@ -290,7 +324,7 @@ fn reconstruct_create(
 }
 
 async fn indexes_of(conn: &mut PgConnection, table: &str) -> Result<Vec<IndexInfo>> {
-    let rows = sqlx::query(
+    let rows = unnamed(
         "SELECT i.relname::text AS name, \
                 ix.indisunique AS is_unique, \
                 ix.indisprimary AS is_primary, \
@@ -351,7 +385,7 @@ fn referential_action(code: &str) -> Option<String> {
 }
 
 async fn foreign_keys_of(conn: &mut PgConnection, table: &str) -> Result<Vec<ForeignKeyInfo>> {
-    let rows = sqlx::query(
+    let rows = unnamed(
         "SELECT con.conname::text AS name, \
                 array_to_string(ARRAY( \
                     SELECT att.attname::text \
@@ -460,6 +494,11 @@ pub(crate) async fn fetch_rows(
         String::new()
     };
 
+    // Sort on the table's column, never on the select list. Every output
+    // column is the text form of the one it is named after, so a bare
+    // `ORDER BY "id"` would bind to that alias and sort 1, 10, 100, 2.
+    let qualified = |column: &str| format!("{table_sql}.{}", quote_ident(column));
+
     let order_sql = match &request.sort {
         Some(sort) => {
             let column = columns
@@ -472,7 +511,7 @@ pub(crate) async fn fetch_rows(
                     ))
                 })?;
             let direction = if sort.descending { "DESC" } else { "ASC" };
-            format!(" ORDER BY {} {direction}", quote_ident(&column.name))
+            format!(" ORDER BY {} {direction}", qualified(&column.name))
         }
         None => {
             // Without an order, pages are not guaranteed to be stable.
@@ -484,7 +523,7 @@ pub(crate) async fn fetch_rows(
             if primary.is_empty() {
                 String::new()
             } else {
-                let names: Vec<String> = primary.iter().map(|c| quote_ident(&c.name)).collect();
+                let names: Vec<String> = primary.iter().map(|c| qualified(&c.name)).collect();
                 format!(" ORDER BY {}", names.join(", "))
             }
         }
@@ -496,8 +535,8 @@ pub(crate) async fn fetch_rows(
         select_list.join(", ")
     );
 
-    let mut count_query = sqlx::query_scalar::<_, i64>(AssertSqlSafe(count_sql));
-    let mut page_query = sqlx::query(AssertSqlSafe(page_sql.clone()));
+    let mut count_query = unnamed_scalar::<i64>(AssertSqlSafe(count_sql));
+    let mut page_query = unnamed(AssertSqlSafe(page_sql.clone()));
     if let Some(pattern) = &pattern {
         count_query = count_query.bind(pattern);
         page_query = page_query.bind(pattern);

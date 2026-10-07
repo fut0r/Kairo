@@ -26,6 +26,11 @@ use tauri::State;
 /// Schema files larger than this are refused rather than loaded into the editor.
 const MAX_SCHEMA_BYTES: u64 = 2 * 1024 * 1024;
 
+/// How long catalog reads, row pages, plans and exports may take.
+const CATALOG_LIMIT: Duration = Duration::from_secs(45);
+/// Added to the user's query time limit before Kairo stops waiting itself.
+const QUERY_GRACE: Duration = Duration::from_secs(15);
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
@@ -173,12 +178,36 @@ pub fn list_connections(state: State<'_, AppState>) -> Vec<ConnectionView> {
     state.list()
 }
 
+/// Gives up on a database call that has stopped answering.
+///
+/// A connection can die without the driver noticing, for example when a
+/// network path drops silently. Without a bound the caller would wait
+/// forever and the screen would show a spinner that never ends.
+async fn bounded<T>(
+    what: &str,
+    limit: Duration,
+    work: impl Future<Output = Result<T>>,
+) -> Result<T> {
+    match tokio::time::timeout(limit, work).await {
+        Ok(result) => result,
+        Err(_) => Err(KairoError::new(
+            ErrorKind::Timeout,
+            format!(
+                "{what} got no answer from the database after {} seconds.",
+                limit.as_secs()
+            ),
+        )
+        .with_hint("Check the connection, then try again or reconnect.")),
+    }
+}
+
 #[tauri::command]
 pub async fn list_tables(
     state: State<'_, AppState>,
     connection_id: String,
 ) -> Result<Vec<TableSummary>> {
-    state.session(&connection_id)?.conn.list_tables().await
+    let session = state.session(&connection_id)?;
+    bounded("Listing tables", CATALOG_LIMIT, session.conn.list_tables()).await
 }
 
 #[tauri::command]
@@ -187,11 +216,13 @@ pub async fn describe_table(
     connection_id: String,
     table: String,
 ) -> Result<TableDetail> {
-    state
-        .session(&connection_id)?
-        .conn
-        .describe_table(&table)
-        .await
+    let session = state.session(&connection_id)?;
+    bounded(
+        "Reading the table",
+        CATALOG_LIMIT,
+        session.conn.describe_table(&table),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -201,11 +232,13 @@ pub async fn fetch_rows(
     table: String,
     request: PageRequest,
 ) -> Result<RowPage> {
-    state
-        .session(&connection_id)?
-        .conn
-        .fetch_rows(&table, &request)
-        .await
+    let session = state.session(&connection_id)?;
+    bounded(
+        "Loading rows",
+        CATALOG_LIMIT,
+        session.conn.fetch_rows(&table, &request),
+    )
+    .await
 }
 
 /// Translates and classifies SQL without running it, so the UI can ask for
@@ -230,11 +263,19 @@ pub async fn run_query(
     let prepared = query::prepare(&sql)?;
     safety::require_acknowledgement(&prepared.analysis, acknowledge, settings.confirm_writes)?;
 
+    let limit = Duration::from_secs(settings.query_timeout_secs.into());
     let options = QueryOptions {
         max_rows: settings.max_rows as usize,
-        timeout: Some(Duration::from_secs(settings.query_timeout_secs.into())),
+        timeout: Some(limit),
     };
-    let result = query::run_prepared(&session.conn, &prepared, &options).await;
+    // The database enforces `limit` itself. The outer bound only matters when
+    // the connection is so broken that even that never comes back.
+    let result = bounded(
+        "The query",
+        limit + QUERY_GRACE,
+        query::run_prepared(&session.conn, &prepared, &options),
+    )
+    .await;
 
     let entry = HistoryEntry {
         sql,
@@ -359,7 +400,13 @@ pub async fn plan_schema(
     text: String,
 ) -> Result<ApplyPlan> {
     let session = state.session(&connection_id)?;
-    schema_apply::plan(&session.conn, &parse_for_apply(&text)?).await
+    let parsed = parse_for_apply(&text)?;
+    bounded(
+        "Comparing the schema",
+        CATALOG_LIMIT,
+        schema_apply::plan(&session.conn, &parsed),
+    )
+    .await
 }
 
 /// Applies a schema. `confirmed` must be true: the UI sets it only after the
@@ -387,7 +434,12 @@ pub async fn export_schema(
     connection_id: String,
 ) -> Result<ExportedSchema> {
     let session = state.session(&connection_id)?;
-    export::export_schema(&session.conn, None).await
+    bounded(
+        "Exporting",
+        CATALOG_LIMIT,
+        export::export_schema(&session.conn, None),
+    )
+    .await
 }
 
 /// Reports on a project folder and remembers it when it is one.
@@ -484,6 +536,28 @@ mod tests {
                 .kind,
             ErrorKind::InvalidInput
         );
+    }
+
+    #[tokio::test]
+    async fn a_call_that_never_answers_is_abandoned() {
+        let stuck = bounded("Listing tables", Duration::from_millis(40), async {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            Ok(1)
+        })
+        .await
+        .unwrap_err();
+        assert_eq!(stuck.kind, ErrorKind::Timeout);
+        assert!(stuck.message.starts_with("Listing tables got no answer"));
+
+        let quick = bounded("x", Duration::from_secs(5), async { Ok(7) }).await;
+        assert_eq!(quick.unwrap(), 7);
+
+        // An error from the database passes through unchanged.
+        let failed: Result<i32> = bounded("x", Duration::from_secs(5), async {
+            Err(KairoError::new(ErrorKind::Syntax, "bad"))
+        })
+        .await;
+        assert_eq!(failed.unwrap_err().kind, ErrorKind::Syntax);
     }
 
     #[test]

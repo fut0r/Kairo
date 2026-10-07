@@ -3,7 +3,7 @@
 
 import { writeFile } from "node:fs/promises";
 
-export async function connect(port = 9222, attempts = 60) {
+export async function connect(port = Number(process.env.KAIRO_CDP_PORT) || 9222, attempts = 60) {
   let target;
   for (let i = 0; i < attempts; i += 1) {
     try {

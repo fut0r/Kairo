@@ -17,9 +17,18 @@
 
 .PARAMETER Screenshots
   Folder to write screenshots to. Defaults to a folder inside the run folder.
+
+.PARAMETER Postgres
+  A PostgreSQL URL, including its password. When given, the PostgreSQL
+  scenario (postgres.mjs) runs instead of the SQLite one. It creates and
+  drops the tables customers, products and orders, so use a scratch database.
+
+  For a server that puts every client on one session, such as PGlite, set
+  $env:KAIRO_PG_POOL_SIZE = '1' first.
 #>
 param(
     [string]$Screenshots,
+    [string]$Postgres,
     [string]$Profile = 'debug',
     [int]$Port = 9222
 )
@@ -59,7 +68,12 @@ $code = 1
 try {
     Start-Sleep -Seconds 3
     "Launched $exe (pid $($app.Id), window '$((Get-Process -Id $app.Id).MainWindowTitle)')"
-    node (Join-Path $PSScriptRoot 'run.mjs') $project $Screenshots $config
+    if ($Postgres) {
+        node (Join-Path $PSScriptRoot 'postgres.mjs') $Postgres $Screenshots $config
+    }
+    else {
+        node (Join-Path $PSScriptRoot 'run.mjs') $project $Screenshots $config
+    }
     $code = $LASTEXITCODE
 }
 finally {
