@@ -9,80 +9,97 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build - ${{ matrix.os }}
+  # The command line tool. Asset names are unchanged from earlier releases,
+  # so existing download links and install scripts keep working.
+  cli:
+    name: CLI - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: kairo-linux
-            asset_name: kairo-linux
+            binary: kairo
+            asset: kairo-linux
           - os: windows-latest
-            artifact_name: kairo-windows.exe
-            asset_name: kairo-windows.exe
+            binary: kairo.exe
+            asset: kairo-windows.exe
           - os: macos-latest
-            artifact_name: kairo-macos
-            asset_name: kairo-macos
-
+            binary: kairo
+            asset: kairo-macos
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
       - name: Build
         run: cargo build --release --verbose
-      - name: Rename binary (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: cp target/release/kairo target/release/kairo-linux
-      - name: Rename binary (macOS)
-        if: matrix.os == 'macos-latest'
-        run: cp target/release/kairo target/release/kairo-macos
-      - name: Rename binary (Windows)
-        if: matrix.os == 'windows-latest'
-        run: cp target/release/kairo.exe target/release/kairo-windows.exe
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - name: Rename binary
+        shell: bash
+        run: cp "target/release/${{ matrix.binary }}" "target/release/${{ matrix.asset }}"
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: target/release/${{ matrix.asset_name }}
+          name: ${{ matrix.asset }}
+          path: target/release/${{ matrix.asset }}
 
   release:
-    name: Create Release
-    needs: build
+    name: Create release
+    needs: cli
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
+          name: KairoDB ${{ github.ref_name }}
+          body_path: docs/release-notes-1.0.0.md
+          generate_release_notes: false
           files: |
             artifacts/kairo-linux/kairo-linux
             artifacts/kairo-windows.exe/kairo-windows.exe
             artifacts/kairo-macos/kairo-macos
-          generate_release_notes: false
-          body: |
-            ## KairoDB ${{ github.ref_name }}
+            install.sh
+            install.ps1
 
-            ### What is new
-
-            **Native multi-database support**
-            The `read` and `export` commands now work with both SQLite files and PostgreSQL connection strings out of the box.
-
-            **Elegant error handling**
-            Passing a non-database file (like a .kairo schema or a config file) no longer produces raw stack traces. Kairo now prints a clean, formatted error message explaining what went wrong and what to do instead.
-
-            **Cross-platform standalone installation**
-            New `install.ps1` (Windows) and `install.sh` (macOS/Linux) scripts allow installing KairoDB globally without Rust or Cargo. Download the binary, run the installer, and you are ready to go.
-
-            ### Installation
-
-            Download the binary for your platform below, then run the included installer script.
-
-            - **Windows**: `kairo-windows.exe` -- run `.\install.ps1`
-            - **macOS**: `kairo-macos` -- run `./install.sh`
-            - **Linux**: `kairo-linux` -- run `./install.sh`
+  # The desktop app. Each runner builds the installers for its own platform
+  # and attaches them to the release created above.
+  desktop:
+    name: Desktop - ${{ matrix.os }}
+    needs: release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            args: ''
+          - os: windows-latest
+            args: ''
+          - os: macos-latest
+            args: '--target aarch64-apple-darwin'
+          - os: macos-latest
+            args: '--target x86_64-apple-darwin'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: desktop
+        run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tagName: ${{ github.ref_name }}
+          args: ${{ matrix.args }}

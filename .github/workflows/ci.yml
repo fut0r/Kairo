@@ -2,19 +2,110 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [master, main]
   pull_request:
-    branches: [ main ]
+    branches: [master, main]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  # The CLI and the shared core. No GUI libraries are needed for these.
+  rust:
+    name: Rust (CLI and core)
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
+
+  # The PostgreSQL adapter against a real server, including the statement
+  # time limit, which needs a server that can interrupt a running statement.
+  postgres:
+    name: PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: kairo-ci-secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      KAIRO_TEST_POSTGRES_URL: postgres://postgres:kairo-ci-secret@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test against PostgreSQL 16
+        run: cargo test -p kairo-core --test postgres -- --nocapture
+
+  frontend:
+    name: Desktop (frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type-check and build
+        run: npm run build
+      - name: Test
+        run: npm test
+
+  desktop:
+    name: Desktop (Rust, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      # The Tauri crate embeds the built frontend at compile time.
+      - name: Build the frontend
+        working-directory: desktop
+        run: |
+          npm ci
+          npm run build
+      - name: Lint
+        run: cargo clippy -p kairo-desktop --all-targets -- -D warnings
+      - name: Test
+        run: cargo test -p kairo-desktop
