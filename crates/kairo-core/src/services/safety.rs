@@ -29,6 +29,10 @@ pub struct StatementInfo {
     pub reason: Option<String>,
     /// The start of the statement, on one line.
     pub preview: String,
+    /// False when the leading keyword is not one Kairo knows. Such a
+    /// statement is treated as destructive because it cannot be ruled out,
+    /// not because it is known to be; it is often just a typo.
+    pub recognized: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -416,12 +420,9 @@ fn classify(statement: &Statement) -> (Risk, Option<String>) {
             )),
         ),
 
-        other => (
-            Risk::Destructive,
-            Some(format!(
-                "Kairo does not recognise {other}, so it is treated as destructive."
-            )),
-        ),
+        // Unknown. Destructive with no reason is how `analyze` tells this
+        // apart from the statements above, which all explain themselves.
+        _ => (Risk::Destructive, None),
     }
 }
 
@@ -451,11 +452,21 @@ pub fn analyze(sql: &str) -> SqlAnalysis {
         }
 
         let (risk, reason) = classify(statement);
+        let recognized = !(risk == Risk::Destructive && reason.is_none());
+        let reason = reason.or_else(|| {
+            (!recognized).then(|| {
+                format!(
+                    "Kairo does not recognise {}, so it asks before running it.",
+                    statement.word(0)
+                )
+            })
+        });
         statements.push(StatementInfo {
             keyword: statement.word(0).to_string(),
             risk,
             reason,
             preview: preview(&statement.text),
+            recognized,
         });
     }
 
@@ -588,6 +599,22 @@ mod tests {
         ] {
             assert_eq!(risk(sql), Risk::Destructive, "{sql}");
         }
+    }
+
+    #[test]
+    fn unknown_statements_are_gated_but_not_called_destructive_by_name() {
+        // A typo must not run unchecked, and must not be described as a
+        // statement that is known to destroy data.
+        let typo = analyze("SELEC * FROM users");
+        assert_eq!(typo.risk, Risk::Destructive);
+        assert!(!typo.statements[0].recognized);
+        assert_eq!(
+            typo.reasons,
+            ["Kairo does not recognise SELEC, so it asks before running it."]
+        );
+
+        let known = analyze("DROP TABLE users; SELECT 1; INSERT INTO t VALUES (1)");
+        assert!(known.statements.iter().all(|s| s.recognized));
     }
 
     #[test]

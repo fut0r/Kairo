@@ -15,6 +15,60 @@ pub fn redact(input: &str) -> String {
     redact_key_values(&redact_urls(input))
 }
 
+/// Masks secrets in SQL before it is kept in history: everything [`redact`]
+/// covers, plus the literal in `PASSWORD '…'`, as in `ALTER ROLE … PASSWORD`.
+pub fn redact_sql(sql: &str) -> String {
+    let input = redact(sql);
+    let lower = input.to_ascii_lowercase();
+    let mut out = String::with_capacity(input.len());
+    let mut copied = 0;
+    let mut search = 0;
+
+    while let Some(found) = lower[search..].find("password") {
+        let start = search + found;
+        let after = start + "password".len();
+        search = after;
+
+        let standalone = !input[..start]
+            .chars()
+            .next_back()
+            .is_some_and(|c| c.is_alphanumeric() || c == '_');
+        // Accept `PASSWORD 'x'`, `password = 'x'` and `password='x'`.
+        let rest = &input[after..];
+        let spaced = rest.trim_start();
+        let assigned = spaced.strip_prefix('=').map(str::trim_start);
+        let separated = spaced.len() < rest.len() || assigned.is_some();
+        let literal = assigned.unwrap_or(spaced);
+        let literal_at = input.len() - literal.len();
+        if !standalone || !separated || !literal.starts_with('\'') {
+            continue;
+        }
+
+        // Find the closing quote; a doubled quote is an escaped one.
+        let body = &input[literal_at + 1..];
+        let mut end = body.len();
+        let mut chars = body.char_indices().peekable();
+        while let Some((at, ch)) = chars.next() {
+            if ch == '\'' {
+                if chars.peek().is_some_and(|(_, next)| *next == '\'') {
+                    chars.next();
+                } else {
+                    end = at;
+                    break;
+                }
+            }
+        }
+
+        out.push_str(&input[copied..=literal_at]);
+        out.push_str(MASK);
+        copied = literal_at + 1 + end;
+        search = copied;
+    }
+
+    out.push_str(&input[copied..]);
+    out
+}
+
 /// Masks the password of every `scheme://user:password@host` in `input`.
 fn redact_urls(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -164,6 +218,37 @@ mod tests {
 
         let out = redact("PASSWORD='two words' next");
         assert_eq!(out, format!("PASSWORD={MASK} next"));
+    }
+
+    #[test]
+    fn sql_password_literals_are_masked() {
+        assert_eq!(
+            redact_sql("ALTER ROLE app WITH PASSWORD 'hunter2' VALID UNTIL 'infinity'"),
+            format!("ALTER ROLE app WITH PASSWORD '{MASK}' VALID UNTIL 'infinity'")
+        );
+        assert_eq!(
+            redact_sql("create user x password   'it''s; secret'; select 1"),
+            format!("create user x password   '{MASK}'; select 1")
+        );
+        // An unterminated literal is masked to the end rather than leaked.
+        assert_eq!(redact_sql("PASSWORD 'oops"), format!("PASSWORD '{MASK}"));
+        // A value being written to a column called password is a secret too.
+        assert_eq!(
+            redact_sql("UPDATE users SET password = 'abc' WHERE id = 1"),
+            format!("UPDATE users SET password = '{MASK}' WHERE id = 1")
+        );
+    }
+
+    #[test]
+    fn sql_without_secrets_is_untouched() {
+        for sql in [
+            "SELECT password FROM users WHERE name = 'bob'",
+            "SELECT * FROM password_resets",
+            "UPDATE users SET password_hash = 'abc' WHERE id = 1",
+            "SELECT 'naïve' AS café",
+        ] {
+            assert_eq!(redact_sql(sql), sql);
+        }
     }
 
     #[test]

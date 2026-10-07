@@ -1,5 +1,7 @@
 [workspace]
-members = [".", "crates/kairo-core"]
+members = [".", "crates/kairo-core", "desktop/src-tauri"]
+# The desktop crate needs a webview toolkit to build. Leaving it out of the
+# defaults keeps `cargo build` and `cargo test` to the CLI and the core.
 default-members = [".", "crates/kairo-core"]
 resolver = "3"
 

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!--
+    Source for every platform icon. Regenerate with:  npm run tauri icon app-icon.svg
+    The mark is the cylinder from kairo.arabdev.site, in the site's accent on its graphite.
+  -->
+  <rect width="1024" height="1024" rx="48" fill="#1b1b1b"/>
+  <rect x="24" y="24" width="976" height="976" rx="28" fill="none" stroke="#3a3a3a" stroke-width="8"/>
+  <g transform="translate(104 104) scale(34)" fill="none" stroke="#4cc2ff" stroke-width="1.8"
+     stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="5" rx="7" ry="2.5"/>
+    <path d="M5 5v5c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V5"/>
+    <path d="M5 10v5c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-5"/>
+    <path d="M5 15v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4"/>
+  </g>
+</svg>
