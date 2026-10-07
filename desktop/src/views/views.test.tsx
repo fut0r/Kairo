@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api/client";
+import type * as ClientModule from "../api/client";
 import { ConnectionDialog } from "../components/ConnectionDialog";
 import { AppProvider, useApp } from "../state/app";
 import { appInfo, outcome, prepared, settings, sqliteConnection } from "../test/fixtures";
@@ -9,7 +10,7 @@ import { QueryView } from "./QueryView";
 // The Tauri bridge does not exist under test. Every command is replaced, so a
 // test can assert exactly which ones a screen calls and with what.
 vi.mock("../api/client", async (original) => {
-  const actual = await original<typeof import("../api/client")>();
+  const actual = await original<typeof ClientModule>();
   const commands = Object.fromEntries(Object.keys(actual.api).map((name) => [name, vi.fn()]));
   return { ...actual, api: commands };
 });

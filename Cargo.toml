@@ -8,6 +8,8 @@ resolver = "3"
 [workspace.package]
 version = "1.0.0"
 edition = "2024"
+# Set by sqlx 0.9, the newest requirement among the dependencies.
+rust-version = "1.94"
 license = "GPL-3.0-only"
 authors = ["Zyad Mohamed (fut0r)"]
 repository = "https://github.com/fut0r/Kairo"
@@ -27,6 +29,7 @@ name = "kairo"
 description = "Human-readable databases. Minimal. Fast. Local-first."
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true

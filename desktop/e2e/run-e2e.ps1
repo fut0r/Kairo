@@ -29,6 +29,9 @@
 param(
     [string]$Screenshots,
     [string]$Postgres,
+    # Where the run keeps its project, settings and webview profile. It must
+    # not exist yet. Defaults to a new folder in the temp directory.
+    [string]$WorkDir,
     [string]$Profile = 'debug',
     [int]$Port = 9222
 )
@@ -41,7 +44,8 @@ foreach ($binary in $exe, $kairo) {
     if (-not (Test-Path $binary)) { throw "Missing $binary. Build it first; see Get-Help $PSCommandPath." }
 }
 
-$root = Join-Path ([IO.Path]::GetTempPath()) ("kairo-e2e-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$root = if ($WorkDir) { $WorkDir } else { Join-Path ([IO.Path]::GetTempPath()) ("kairo-e2e-" + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
+if (Test-Path $root) { throw "$root already exists. Choose a folder that does not, so the run starts clean." }
 $project = Join-Path $root 'demo-shop'
 $config = Join-Path $root 'config'
 if (-not $Screenshots) { $Screenshots = Join-Path $root 'shots' }

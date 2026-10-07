@@ -134,7 +134,29 @@ the same SQL.
 11. README, changelog, release notes, screenshots.
 12. Format, lint, test, production builds.
 
-## 7. Known limits carried into 1.0
+## 7. What verification changed
+
+Each phase was checked before the next began. Three things were only found by
+running against something real, and they changed the design:
+
+- **Driving the built app.** `desktop/e2e` controls the actual window through
+  WebView2's debugging port. Screenshots from it showed layout faults that unit
+  tests could not: a long path widened the page past the window, and a class
+  order clash collapsed the Schema split to one column.
+- **A real PostgreSQL engine.** Against PGlite, browsing returned rows in the
+  order 1, 10, 100, 2. Each column was selected as `"id"::text AS "id"`, so
+  `ORDER BY "id"` bound to the text alias. Sort columns are now qualified with
+  their table.
+- **A shared session.** PGlite serves every client from one session, as a
+  connection pooler does. sqlx's named prepared statements collided there, so
+  every PostgreSQL query is now sent unnamed, and the pool size is
+  configurable through `KAIRO_PG_POOL_SIZE`.
+
+Not exercised against a live PostgreSQL server: the statement time limit, TLS,
+and several connections at once. The CI workflow runs `tests/postgres.rs`
+against `postgres:16`, which covers the first and the last.
+
+## 8. Known limits carried into 1.0
 
 - One PostgreSQL schema per connection (`current_schema()`).
 - Statement classification is lexical. A `SELECT` that calls a function with

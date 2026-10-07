@@ -5,9 +5,11 @@ KairoDB is designed to be simple and local-first. Here is how you can get up and
 ## 1. Installation
 
 ### Without Rust (Pre-built Binaries)
-1. Go to the [Releases](https://github.com/lnfiniware/kairo/releases) page.
+1. Go to the [Releases](https://github.com/fut0r/Kairo/releases) page.
 2. Download the binary for your operating system (Linux, macOS, or Windows).
-3. Move the binary to a directory in your system's PATH (e.g., `/usr/local/bin` or a custom folder).
+3. Run `install.sh` or `install.ps1` beside it, or move the binary to a directory in your system's PATH.
+
+The same page has installers for the [desktop app](Desktop-App).
 
 ### With Rust (From Source)
 If you have Rust installed:
