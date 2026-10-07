@@ -1,0 +1,49 @@
+/*
+ * Brand typefaces, the same files kairo.arabdev.site serves from the
+ * repository root. Removing this file's import from main.tsx ships the app
+ * without them; the stacks in tokens.css then fall back to system fonts.
+ */
+
+@font-face {
+  font-family: "Helvetica Neue";
+  src: url("../../../helvetica-neue-5/HelveticaNeueRoman.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Helvetica Neue";
+  src: url("../../../helvetica-neue-5/HelveticaNeueMedium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Helvetica Neue";
+  src: url("../../../helvetica-neue-5/HelveticaNeueBold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Adelle";
+  src: url("../../../Adelle-Font/Adelle_Reg.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Adelle";
+  src: url("../../../Adelle-Font/Adelle_Semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Adelle";
+  src: url("../../../Adelle-Font/Adelle_Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

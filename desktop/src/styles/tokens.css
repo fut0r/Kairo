@@ -1,0 +1,96 @@
+/*
+ * Design tokens. The palette, type and square-cornered hairline language come
+ * from kairo.arabdev.site (style.css at the repository root).
+ *
+ * Deliberate differences from the site, each for contrast:
+ * - muted text is #a3a3a3, not #999, so it passes AA on the code background
+ * - the primary button uses dark text on the dark theme's light-blue accent
+ * - form controls use a stronger border than the 1px hairline
+ */
+
+:root {
+  --font-sans: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+  --font-display: "Adelle", "Rockwell", "Roboto Slab", Georgia, serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13.5px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --sidebar-width: 248px;
+  --header-height: 50px;
+  --row-height: 30px;
+
+  /* Light theme: the site's default palette. */
+  --bg: #ffffff;
+  --bg-secondary: #f2f2f2;
+  --bg-sunken: #f7f7f7;
+  --card-bg: #ffffff;
+  --code-bg: #f5f5f5;
+  --text: #1a1a1a;
+  --text-light: #616161;
+  --border: #e5e5e5;
+  --border-strong: #8f8f8f;
+  --accent: #0067b8;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(0, 103, 184, 0.1);
+  --red: #c50f1f;
+  --red-soft: rgba(197, 15, 31, 0.08);
+  --green: #15803d;
+  --green-soft: rgba(21, 128, 61, 0.09);
+  --amber: #a85b00;
+  --amber-soft: rgba(168, 91, 0, 0.1);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --hover: rgba(0, 0, 0, 0.045);
+  --selected: rgba(0, 103, 184, 0.09);
+
+  --syntax-keyword: var(--accent);
+  --syntax-entity: #c50f1f;
+  --syntax-type: #15803d;
+  --syntax-value: #a85b00;
+  --syntax-comment: #6b6b6b;
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1b1b;
+  --bg-secondary: #2d2d2d;
+  --bg-sunken: #161616;
+  --card-bg: #2d2d2d;
+  --code-bg: #333333;
+  --text: #e8e8e8;
+  --text-light: #a3a3a3;
+  --border: #3a3a3a;
+  --border-strong: #707070;
+  --accent: #4cc2ff;
+  --accent-contrast: #06202e;
+  --accent-soft: rgba(76, 194, 255, 0.12);
+  --red: #ff6b78;
+  --red-soft: rgba(255, 107, 120, 0.12);
+  --green: #4ade80;
+  --green-soft: rgba(74, 222, 128, 0.1);
+  --amber: #fbbf24;
+  --amber-soft: rgba(251, 191, 36, 0.1);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --hover: rgba(255, 255, 255, 0.055);
+  --selected: rgba(76, 194, 255, 0.13);
+
+  --syntax-keyword: var(--accent);
+  --syntax-entity: #ff6b78;
+  --syntax-type: #4ade80;
+  --syntax-value: #fbbf24;
+  --syntax-comment: #a3a3a3;
+
+  color-scheme: dark;
+}
