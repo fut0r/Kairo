@@ -47,7 +47,7 @@ function Welcome() {
   return (
     <>
       <div className="empty" style={{ padding: 0 }}>
-        <p className="eyebrow">KairoDB v{app.info?.version ?? "1.0.0"}</p>
+        <p className="eyebrow">KairoDB{app.info && ` v${app.info.version}`}</p>
         <h2 style={{ fontSize: 30, letterSpacing: "-0.5px" }}>Open a database to begin.</h2>
         <p>
           Browse tables and rows, run queries with a safety check, and apply schemas written in

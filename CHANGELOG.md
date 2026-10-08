@@ -2,6 +2,17 @@
 
 All notable changes to KairoDB are recorded here. Versions follow [Semantic Versioning](https://semver.org).
 
+## 1.0.1
+
+Only the Windows installers change. The app and the command line tool behave as they did in 1.0.0.
+
+### Changed
+
+- The Windows `setup.exe` and `.msi` show the app's icon and name on every page, in place of the stock installer pictures. `setup.exe` and the uninstaller carry the app icon.
+- Windows shows the publisher as `fut0r` in Apps & Features, in the `.msi` and in the app's file properties. It was `arabdev`, guessed from the app identifier.
+
+The installers are still not code-signed, so Windows SmartScreen still reports an unknown publisher. That warning is about the missing signature, not the name above.
+
 ## 1.0.0
 
 The first stable release. It adds a desktop app and moves everything Kairo does into one Rust core that the app and the CLI share.

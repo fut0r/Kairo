@@ -6,7 +6,7 @@ default-members = [".", "crates/kairo-core"]
 resolver = "3"
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 # Set by sqlx 0.9, the newest requirement among the dependencies.
 rust-version = "1.94"
@@ -16,7 +16,7 @@ repository = "https://github.com/fut0r/Kairo"
 homepage = "https://kairo.arabdev.site"
 
 [workspace.dependencies]
-kairo-core = { path = "crates/kairo-core", version = "1.0.0" }
+kairo-core = { path = "crates/kairo-core", version = "1.0.1" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.35", default-features = false }
 

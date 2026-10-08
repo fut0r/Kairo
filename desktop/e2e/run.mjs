@@ -12,6 +12,8 @@ import { REPORT_QUERY, SCHEMA, SEED } from "./demo.mjs";
 const [projectDir, shotDir, configDir] = process.argv.slice(2);
 const dbPath = path.join(projectDir, "data", "shop.db");
 const schemaPath = path.join(projectDir, "schema", "shop.kairo");
+// The app must report the version this checkout builds.
+const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
 const results = [];
 function check(name, ok, detail = "") {
@@ -47,10 +49,10 @@ try {
   // ───────────── A. The app starts ─────────────
   await app.waitFor(has("Open a database to begin."), "welcome screen");
   const info = (await app.invoke("app_info")).ok;
-  check("app starts and reports version 1.0.0", info?.version === "1.0.0" && info?.coreVersion === "1.0.0", JSON.stringify(info));
+  check(`app starts and reports version ${version}`, info?.version === version && info?.coreVersion === version, JSON.stringify(info));
   check("store lives in the isolated config dir", info?.storePath?.startsWith(configDir), info?.storePath);
   check("sidebar shows brand, version and both primary actions",
-    (await app.text(".sidebar")).includes("KairoDB") && (await app.text(".sidebar")).includes("v1.0.0")
+    (await app.text(".sidebar")).includes("KairoDB") && (await app.text(".sidebar")).includes(`v${version}`)
       && (await app.text(".sidebar")).includes("Open Database") && (await app.text(".sidebar")).includes("New Connection"));
   check("header says no database is open", (await app.text(".page-header")).includes("No database open"));
   await shot("01-welcome");

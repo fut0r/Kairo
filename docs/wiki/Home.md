@@ -2,6 +2,10 @@
 
 KairoDB reads, writes and manages databases using plain text. It is a command line tool and, from 1.0, a desktop app.
 
+## v1.0.1
+
+The Windows installers show the app's icon and name instead of the stock installer pictures, and name the publisher. The app itself is unchanged.
+
 ## v1.0.0
 
 The first stable release.
