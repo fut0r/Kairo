@@ -1,12 +1,22 @@
 name: Release
 
+# Runs when a version tag is pushed. It can also be started by hand from the
+# Actions tab for a tag that already exists, to build or rebuild its release.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and publish, for example v1.0.0'
+        required: true
 
 permissions:
   contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   # The command line tool. Asset names are unchanged from earlier releases,
@@ -28,6 +38,8 @@ jobs:
             asset: kairo-macos
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Build
         run: cargo build --release --verbose
@@ -45,13 +57,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Find the release notes
+        id: notes
+        shell: bash
+        run: |
+          file="docs/release-notes-${TAG#v}.md"
+          [ -f "$file" ] || file=CHANGELOG.md
+          echo "file=$file" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@v2
         with:
-          name: KairoDB ${{ github.ref_name }}
-          body_path: docs/release-notes-1.0.0.md
+          tag_name: ${{ env.TAG }}
+          name: KairoDB ${{ env.TAG }}
+          body_path: ${{ steps.notes.outputs.file }}
           generate_release_notes: false
           files: |
             artifacts/kairo-linux/kairo-linux
@@ -63,23 +85,29 @@ jobs:
   # The desktop app. Each runner builds the installers for its own platform
   # and attaches them to the release created above.
   desktop:
-    name: Desktop - ${{ matrix.os }}
+    name: Desktop - ${{ matrix.name }}
     needs: release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
+          - name: Linux (deb, rpm, AppImage)
+            os: ubuntu-22.04
             args: ''
-          - os: windows-latest
+          - name: Windows (msi, setup.exe)
+            os: windows-latest
             args: ''
-          - os: macos-latest
+          - name: macOS Apple Silicon (dmg)
+            os: macos-latest
             args: '--target aarch64-apple-darwin'
-          - os: macos-latest
+          - name: macOS Intel (dmg)
+            os: macos-latest
             args: '--target x86_64-apple-darwin'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -101,5 +129,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: desktop
-          tagName: ${{ github.ref_name }}
+          tagName: ${{ env.TAG }}
           args: ${{ matrix.args }}
