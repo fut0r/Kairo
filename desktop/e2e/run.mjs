@@ -218,6 +218,13 @@ try {
   const history = await app.text('.view:not([hidden]) [aria-label="Query history"]');
   check("history lists what was run in this workspace, including the failure", history.includes("from customers where city") && history.includes("failed") && history.includes("SELECT * FROM ghosts"), history.slice(0, 300));
 
+  // Finish on a query that works, so the screenshots taken from here on do
+  // not carry the deliberate failure above in the status bar.
+  await app.type(".view:not([hidden]) .editor-input", REPORT_QUERY);
+  await press("Run");
+  await app.waitFor(`document.querySelector(".statusbar").innerText.includes("Query finished: 25 rows")`, "status bar to report the successful query");
+  check("the status bar reports the latest outcome", true);
+
   // ───────────── E. Explorer ─────────────
   await goTo("Explorer");
   await app.waitFor(`document.querySelectorAll(".view:not([hidden]) .tree-row").length === 5`, "five tables listed");

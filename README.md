@@ -297,7 +297,7 @@ KAIRO_TEST_POSTGRES_URL=postgres://postgres:secret@localhost:5432/postgres \
   cargo test -p kairo-core --test postgres
 ```
 
-On Windows, `npm run e2e` (in `desktop/`) starts the built app and drives the real window through WebView2's debugging port: it opens a real SQLite file, applies a schema, runs queries, pages through rows and checks 69 behaviours, with nothing mocked. See `desktop/e2e/run-e2e.ps1`.
+On Windows, `npm run e2e` (in `desktop/`) starts the built app and drives the real window through WebView2's debugging port: it opens a real SQLite file, applies a schema, runs queries, pages through rows and checks 70 behaviours, with nothing mocked. See `desktop/e2e/run-e2e.ps1`.
 
 ## Project layout
 

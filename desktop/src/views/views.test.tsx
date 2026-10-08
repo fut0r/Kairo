@@ -5,6 +5,7 @@ import type * as ClientModule from "../api/client";
 import { ConnectionDialog } from "../components/ConnectionDialog";
 import { AppProvider, useApp } from "../state/app";
 import { appInfo, outcome, prepared, settings, sqliteConnection } from "../test/fixtures";
+import { Explorer } from "./Explorer";
 import { QueryView } from "./QueryView";
 
 // The Tauri bridge does not exist under test. Every command is replaced, so a
@@ -158,6 +159,64 @@ describe("Query workspace", () => {
 
     typeAndRun(field, "SELECT * FROM big");
     expect(await screen.findByText(/more rows exist/)).toBeTruthy();
+  });
+});
+
+describe("Explorer", () => {
+  beforeEach(() => {
+    mocked.listTables.mockResolvedValue([
+      { name: "users", kind: "table", columnCount: 2, rowCount: 120, rowCountEstimated: false },
+    ]);
+    mocked.describeTable.mockResolvedValue({
+      name: "users",
+      kind: "table",
+      columns: [],
+      indexes: [],
+      foreignKeys: [],
+      createSql: "CREATE TABLE users (id INTEGER, name TEXT)",
+    });
+    mocked.fetchRows.mockImplementation(async (_id, _table, request) => ({
+      columns: outcome().columns,
+      rows: outcome().rows,
+      totalRows: 120,
+      offset: request.offset,
+      limit: request.limit,
+      sql: `SELECT * FROM "users" LIMIT ${request.limit} OFFSET ${request.offset}`,
+    }));
+  });
+
+  it("keeps a page change made straight after a table opens", async () => {
+    render(
+      <AppProvider>
+        <Explorer />
+      </AppProvider>,
+    );
+    // The paging buttons are disabled until the first page has loaded.
+    await screen.findByText(/of 120/);
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+
+    // Longer than the filter debounce, which used to reset the page.
+    await new Promise((resolve) => setTimeout(resolve, 450));
+
+    const offsets = mocked.fetchRows.mock.calls.map((call) => call[2].offset);
+    expect(offsets[offsets.length - 1]).toBe(50);
+    expect(await screen.findByText(/OFFSET 50/)).toBeTruthy();
+  });
+
+  it("filters after typing pauses, from the first page", async () => {
+    render(
+      <AppProvider>
+        <Explorer />
+      </AppProvider>,
+    );
+    await screen.findByText(/of 120/);
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.change(screen.getByLabelText("Filter rows of users"), { target: { value: " ali " } });
+
+    await waitFor(() => {
+      const last = mocked.fetchRows.mock.calls[mocked.fetchRows.mock.calls.length - 1]![2];
+      expect(last).toMatchObject({ filter: "ali", offset: 0 });
+    });
   });
 });
 

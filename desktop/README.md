@@ -59,7 +59,7 @@ Layout uses logical properties (`margin-inline`, `border-inline-start`, `text-al
 ```
 npm run tauri build -- --debug --no-bundle
 cargo build                                    # from the repository root, for the kairo CLI
-npm run e2e                                    # SQLite: 69 checks
+npm run e2e                                    # SQLite: 70 checks
 npm run e2e -- -Screenshots ..\docs\screenshots
 npm run e2e -- -Postgres "postgres://user:secret@localhost:5432/scratch"
 npm run e2e -- -Profile release                # after: npm run tauri build -- --no-bundle; cargo build --release

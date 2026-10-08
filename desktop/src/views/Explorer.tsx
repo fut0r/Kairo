@@ -324,13 +324,18 @@ function DataTab({ connectionId, table }: { connectionId: string; table: string 
   const [reload, setReload] = useState(0);
 
   // Wait for typing to pause before filtering, and go back to the first page.
+  // Only when the filter really changes: without that check the timer also
+  // ran once on opening a table and undid a page change made in its first
+  // 300 ms.
   useEffect(() => {
+    const next = filterInput.trim();
+    if (next === filter) return;
     const timer = window.setTimeout(() => {
-      setFilter(filterInput.trim());
+      setFilter(next);
       setOffset(0);
     }, FILTER_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [filterInput]);
+  }, [filterInput, filter]);
 
   useEffect(() => {
     let cancelled = false;
