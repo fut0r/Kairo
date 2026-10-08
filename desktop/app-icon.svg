@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <!--
     Source for every platform icon. Regenerate with:  npm run tauri icon app-icon.svg
+    Then redraw the Windows installer pictures:       src-tauri/installer/make-images.ps1
     The mark is the cylinder from kairo.arabdev.site, in the site's accent on its graphite.
   -->
   <rect width="1024" height="1024" rx="48" fill="#1b1b1b"/>

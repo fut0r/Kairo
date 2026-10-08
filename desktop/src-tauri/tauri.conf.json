@@ -37,6 +37,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "publisher": "fut0r",
     "category": "DeveloperTool",
     "shortDescription": "Human-readable databases.",
     "longDescription": "KairoDB opens SQLite files and PostgreSQL servers, shows their tables and data, runs queries with a safety check, and applies schemas written in plain .kairo files. Local-first: no account, no telemetry.",
@@ -50,7 +51,15 @@
     },
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp"
+      },
+      "wix": {
+        "bannerPath": "installer/wix-banner.bmp",
+        "dialogImagePath": "installer/wix-dialog.bmp"
       }
     }
   }
