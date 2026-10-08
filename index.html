@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KairoDB - Human-Readable Databases</title>
-    <meta name="description" content="KairoDB is a terminal-first database tool. Define schemas in plain text, compile them to SQLite or PostgreSQL, and read any database file.">
-    <meta name="keywords" content="database, CLI, SQLite, PostgreSQL, schema, terminal, developer tools, Rust">
+    <meta name="description" content="KairoDB is a local-first database tool with a command line and a desktop app. Define schemas in plain text, apply them to SQLite or PostgreSQL, and explore any database.">
+    <meta name="keywords" content="database, CLI, desktop app, database browser, SQLite, PostgreSQL, schema, terminal, developer tools, Rust">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='7' ry='2.5'/%3E%3Cpath d='M5 5v5c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V5'/%3E%3Cpath d='M5 10v5c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-5'/%3E%3Cpath d='M5 15v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -50,7 +50,7 @@
                 <div class="hero-text">
                     <p class="hero-label">Kairo<span class="blue-db">DB</span> v1.0.0</p>
                     <h1 id="hero-typewriter">Human-readable databases.</h1>
-                    <p class="hero-sub">Define database schemas in plain text. Compile them into real SQLite or PostgreSQL databases. Read any existing .db file and get a clean breakdown of every table, column, and row. No ORM. No bloat. Just your terminal and your data.</p>
+                    <p class="hero-sub">Define database schemas in plain text. Compile them into real SQLite or PostgreSQL databases. Read any existing .db file and get a clean breakdown of every table, column, and row. No ORM. No bloat. Use it from your terminal, or from the new desktop app.</p>
                     <div class="hero-actions">
                         <a href="https://github.com/fut0r/kairo/releases" class="btn-primary">Download</a>
                         <a href="https://github.com/fut0r/kairo" class="btn-outline">Source code</a>
@@ -74,6 +74,84 @@
                     <h3>Query from your shell</h3>
                     <p>Run queries directly from the terminal. Use simplified syntax or standard SQL. Both work out of the box.</p>
                     <code>kairo query "from users"</code>
+                </div>
+            </div>
+
+            <!-- Desktop app (v1.0) -->
+            <div class="desktop-section">
+                <p class="hero-label">New in v1.0.0</p>
+                <h2>A desktop app, on the same core</h2>
+                <p class="section-desc">Kairo 1.0 adds a desktop app for Windows, macOS, and Linux. It runs on the same Rust core as the command line, shows the SQL behind every screen, and keeps everything on your machine. No account. No telemetry. Passwords are never written to disk.</p>
+                <div class="desktop-actions">
+                    <a href="https://github.com/fut0r/Kairo/releases" class="btn-primary">Get the app</a>
+                    <a href="https://github.com/fut0r/Kairo#build-from-source" class="btn-outline">Build from source</a>
+                </div>
+
+                <figure class="shot shot-wide">
+                    <a href="docs/screenshots/02-explorer.png" target="_blank">
+                        <img src="docs/screenshots/02-explorer.png" width="1280" height="820" alt="The KairoDB desktop app showing the rows of a customers table, with the table list on the left">
+                    </a>
+                    <figcaption>
+                        <h4>Explore any database</h4>
+                        <p>Tables, columns, indexes, foreign keys, and rows. Filter across every column, sort by any of them, and page through the data. The statement behind the page is always shown.</p>
+                    </figcaption>
+                </figure>
+
+                <div class="shot-grid">
+                    <figure class="shot">
+                        <a href="docs/screenshots/03-query.png" target="_blank">
+                            <img src="docs/screenshots/03-query.png" width="1280" height="820" loading="lazy" alt="The Query workspace with a SQL query, its result grid, and the query history">
+                        </a>
+                        <figcaption>
+                            <h4>Run queries</h4>
+                            <p>Write SQL, press Ctrl+Enter, and get typed results with timing. History is kept per database.</p>
+                        </figcaption>
+                    </figure>
+                    <figure class="shot">
+                        <a href="docs/screenshots/05-schema.png" target="_blank">
+                            <img src="docs/screenshots/05-schema.png" width="1280" height="820" loading="lazy" alt="The Schema workspace with a .kairo file in the editor and a preview of the parsed tables beside it">
+                        </a>
+                        <figcaption>
+                            <h4>Edit schemas</h4>
+                            <p>Write .kairo files with live validation from the real parser. See what every field becomes before you apply it.</p>
+                        </figcaption>
+                    </figure>
+                    <figure class="shot">
+                        <a href="docs/screenshots/07-apply-plan.png" target="_blank">
+                            <img src="docs/screenshots/07-apply-plan.png" width="1280" height="820" loading="lazy" alt="The apply dialog naming the target database and listing the three tables that will be created">
+                        </a>
+                        <figcaption>
+                            <h4>Apply with a plan</h4>
+                            <p>Applying names the target database and lists exactly what will be created. Nothing changes until you confirm.</p>
+                        </figcaption>
+                    </figure>
+                    <figure class="shot">
+                        <a href="docs/screenshots/04-confirm.png" target="_blank">
+                            <img src="docs/screenshots/04-confirm.png" width="1280" height="820" loading="lazy" alt="A confirmation dialog listing the statements in a script that change data">
+                        </a>
+                        <figcaption>
+                            <h4>It asks before it changes data</h4>
+                            <p>Reads run at once. Anything that changes data asks first, and says why. DROP, DELETE, and UPDATE always ask.</p>
+                        </figcaption>
+                    </figure>
+                    <figure class="shot">
+                        <a href="docs/screenshots/14-postgres.png" target="_blank">
+                            <img src="docs/screenshots/14-postgres.png" width="1280" height="820" loading="lazy" alt="The structure of a PostgreSQL table, with the connection URL shown with its password masked">
+                        </a>
+                        <figcaption>
+                            <h4>PostgreSQL too</h4>
+                            <p>Connect with a URL. The same screens work on SQLite files and PostgreSQL servers, and passwords stay masked.</p>
+                        </figcaption>
+                    </figure>
+                    <figure class="shot">
+                        <a href="docs/screenshots/12-light.png" target="_blank">
+                            <img src="docs/screenshots/12-light.png" width="1280" height="820" loading="lazy" alt="The desktop app in its light theme">
+                        </a>
+                        <figcaption>
+                            <h4>Dark and light</h4>
+                            <p>A dark theme by default, and a light one when you want it.</p>
+                        </figcaption>
+                    </figure>
                 </div>
             </div>
 
@@ -130,7 +208,7 @@
                 <div class="showcase-item">
                     <div class="showcase-text">
                         <h2>Built for the terminal</h2>
-                        <p>KairoDB lives where you work. Open any terminal, type <code>kairo</code>, and you get a clean overview of every command available. No GUI needed. No browser. Just your keyboard and your data.</p>
+                        <p>KairoDB lives where you work. Open any terminal, type <code>kairo</code>, and you get a clean overview of every command available. No GUI needed. No browser. Just your keyboard and your data. The desktop app is there when you want one.</p>
                         <p>The interface is designed to be readable at a glance. Blue borders frame the output, commands are listed clearly, and everything fits in a single screen.</p>
                     </div>
                     <div class="showcase-img">
@@ -257,6 +335,13 @@
                             <p class="step-desc"><code>kairo create users</code></p>
                         </div>
                     </div>
+                    <div class="install-step">
+                        <span class="step-num">4</span>
+                        <div>
+                            <p class="step-title">Prefer a window?</p>
+                            <p class="step-desc">Installers for the desktop app are on the same <a href="https://github.com/fut0r/Kairo/releases">Releases</a> page, from v1.0.0. Open your project folder or any database file.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -273,6 +358,7 @@
                         <ul id="wiki-menu">
                             <li class="sidebar-item" onclick="loadWiki('Home')">Home</li>
                             <li class="sidebar-item" onclick="loadWiki('Getting-Started')">Getting Started</li>
+                            <li class="sidebar-item" onclick="loadWiki('Desktop-App')">Desktop App</li>
                             <li class="sidebar-item" onclick="loadWiki('Commands')">Commands</li>
                             <li class="sidebar-item" onclick="loadWiki('Schemas')">Schemas</li>
                             <li class="sidebar-item" onclick="loadWiki('Queries')">Queries</li>
