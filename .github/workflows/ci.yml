@@ -5,6 +5,8 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # Lets the checks be started by hand from the Actions tab.
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
